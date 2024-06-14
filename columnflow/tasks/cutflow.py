@@ -729,3 +729,57 @@ class PlotCutflowVariablesPerProcess2D(
             process: self.reqs.PlotCutflowVariables2D.req(self, processes=(process,))
             for process in self.processes
         }
+
+
+class PlotCutflowEfficiency(
+    PlotCutflowVariablesBase,
+    PlotBase1D,
+):
+    plot_function = 'columnflow.plotting.plot_functions_1d.foobar' # replace 
+    
+    def output(self): # output dictinory 
+        b = self.branch_data
+        return {"plots": law.SiblingFileCollection({
+            s: [
+                self.local_target(name) for name in self.get_plot_names(
+                    f"plot__step{i}_{s}__proc_{self.processes_repr}__cat_{b.category}__var_{b.variable}",
+                )
+            ]
+            for i, s in enumerate(self.chosen_steps)
+        })}
+    
+    def run_postprocess(self, hists, category_inst, variable_insts):
+        import hist
+
+        outputs = self.output()["plots"]
+
+        pre_hists = None
+
+        for step in self.chosen_steps:
+            post_hists = OrderedDict(
+                (process_inst.copy_shallow(), h[{"step": hist.loc(step)}])
+                for process_inst, h in hists.items()
+            )
+
+            if pre_hists is None: pre_hists = post_hists
+
+            # call the plot function
+            fig, _ = self.call_plot_func(
+                self.plot_function,
+                hists=pre_hists,
+                post_hists=post_hists,
+                config_inst=self.config_inst,
+                category_inst=category_inst.copy_shallow(),
+                variable_insts=[var_inst.copy_shallow() for var_inst in variable_insts],
+                style_config={"legend_cfg": {"title": f"Step '{step}'"}},
+                **self.get_plot_parameters(),
+            )
+
+            pre_hists = post_hists # update pre hists for next step
+
+            # save the plot
+            for outp in outputs[step]:
+                outp.dump(fig, formatter="mpl")
+    
+
+                    

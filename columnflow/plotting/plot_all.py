@@ -5,7 +5,6 @@ Example plot function.
 """
 
 from __future__ import annotations
-
 from columnflow.types import Sequence
 from columnflow.util import maybe_import, try_float
 from columnflow.plotting.plot_util import get_position, get_cms_label
@@ -83,7 +82,7 @@ def draw_stack(
 def draw_hist(
     ax: plt.Axes,
     h: hist.Hist,
-    norm: float | Sequence | np.ndarray = 1.0,
+    norm: float | Sequence | np.ndar4tray = 1.0,
     **kwargs,
 ) -> None:
     h = h / norm
@@ -94,6 +93,47 @@ def draw_hist(
     }
     defaults.update(kwargs)
     h.plot1d(**defaults)
+
+
+def draw_efficiency(
+    ax: plt.Axes,
+    h: hist.Hist,
+    norm: float | Sequence | np.ndarray = 1.0,
+    **kwargs,
+) -> None:
+    
+    post_hist = kwargs['post_hist']
+    pre_hist = kwargs['pre_hist']
+
+    num = post_hist.values()
+    denom = pre_hist.values()
+
+    print(num)
+    print(denom)
+
+    from hist.intervals import clopper_pearson_interval
+
+    num = np.minimum(num,denom)
+    vals = np.divide(num,denom, out=np.ones_like(num), where=denom!=0)
+
+    #yerr = clopper_pearson_interval(h_num, h_denom)
+    #yerr = np.where(vals==0, 0, np.abs(yerr - vals))
+
+    ax.step(
+        x=h.axes[0].centers,
+        y=vals,
+    )
+    '''
+    ax.errorbar(
+        x=h.axes[0].centers,
+        y=vals,
+        yerr=yerr,
+        color="k",
+        linestyle="none",
+        marker="o",
+        elinewidth=1,
+    )
+    '''
 
 
 def draw_errorbars(
@@ -169,7 +209,7 @@ def plot_all(
     # available plot methods mapped to their names
     plot_methods = {
         func.__name__: func
-        for func in [draw_error_bands, draw_stack, draw_hist, draw_errorbars]
+        for func in [draw_error_bands, draw_stack, draw_hist, draw_errorbars, draw_efficiency]
     }
 
     plt.style.use(mplhep.style.CMS)

@@ -54,6 +54,8 @@ def plot_variable_per_process(
     hists = apply_process_settings(hists, process_settings)
     hists = apply_density_to_hists(hists, density)
 
+    for l, h in hists.items(): print(l)
+
     plot_config = prepare_plot_config(
         hists,
         shape_norm=shape_norm,
@@ -70,6 +72,131 @@ def plot_variable_per_process(
 
     return plot_all(plot_config, style_config, **kwargs)
 
+
+def foobar(
+    hists: OrderedDict,
+    post_hists: OrderedDict,
+    config_inst: od.Config,
+    category_inst: od.Category,
+    variable_insts: list[od.Variable],
+    style_config: dict | None = None,
+    density: bool | None = False,
+    shape_norm: bool | None = False,
+    yscale: str | None = "",
+    hide_errors: bool | None = None,
+    process_settings: dict | None = None,
+    variable_settings: dict | None = None,
+    **kwargs,
+):
+    print('################ foobar ################')
+
+    remove_residual_axis(hists, "shift")
+    remove_residual_axis(post_hists, "shift")
+
+    variable_inst = variable_insts[0]
+    hists = apply_variable_settings(hists, variable_insts, variable_settings)
+    hists = apply_density_to_hists(hists, density)
+    post_hists = apply_variable_settings(post_hists, variable_insts, variable_settings)
+    post_hists = apply_density_to_hists(post_hists, density)
+
+    plot_config = OrderedDict()
+
+    # for updating labels of individual selector steps
+    selector_step_labels = config_inst.x("selector_step_labels", {})
+
+    # add hists
+    for (label, pre_hist), (_, post_hist) in zip(hists.items(), post_hists.items()):
+        norm = sum(h.values()) if shape_norm else 1
+        plot_config[f"hist_{label}"] = plot_cfg = {
+            "method": "draw_hist",
+            "hist": pre_hist,
+            "kwargs": {
+                "label": selector_step_labels.get(label, label),
+            },
+            "ratio_method": "draw_efficiency",
+            "ratio_kwargs": {
+                "pre_hist": pre_hist,
+                "post_hist": post_hist,
+            },
+        }
+
+    # setup style config
+    default_style_config = prepare_style_config(
+        config_inst, category_inst, variable_inst, density, shape_norm, yscale,
+    )
+    # plot-function specific changes
+    default_style_config["rax_cfg"]["ylim"] = (0., 1.1)
+    default_style_config["rax_cfg"]["ylabel"] = "efficiency"
+
+    style_config = law.util.merge_dicts(default_style_config, style_config, deep=True)
+    if shape_norm:
+        style_config["ax_cfg"]["ylabel"] = r"$\Delta N/N$"
+
+    return plot_all(plot_config, style_config, **kwargs)
+
+
+
+def plot_variable_variants_new(
+    hists: OrderedDict,
+    config_inst: od.Config,
+    category_inst: od.Category,
+    variable_insts: list[od.Variable],
+    style_config: dict | None = None,
+    density: bool | None = False,
+    shape_norm: bool = False,
+    yscale: str | None = None,
+    hide_errors: bool | None = None,
+    variable_settings: dict | None = None,
+    **kwargs,
+) -> plt.Figure:
+    """
+    TODO.
+    """
+
+
+    remove_residual_axis(hists, "shift")
+
+    variable_inst = variable_insts[0]
+    hists = apply_variable_settings(hists, variable_insts, variable_settings)
+    hists = apply_density_to_hists(hists, density)
+
+    plot_config = OrderedDict()
+
+    # for updating labels of individual selector steps
+    selector_step_labels = config_inst.x("selector_step_labels", {})
+
+    # add hists
+    norm_step = "Initial" 
+
+    for label, h in hists.items():
+        norm = sum(h.values()) if shape_norm else 1
+        plot_config[f"hist_{label}"] = plot_cfg = {
+            "method": "draw_efficiency",
+            "hist": h,
+            "kwargs": {
+                #"norm": norm,
+                #"norm": hists[norm_step].values(),
+                "label": selector_step_labels.get(label, label),
+            },
+            "ratio_kwargs": {
+                "norm": hists[norm_step].values(),
+            },
+        }
+        norm_step = label
+
+    # setup style config
+    default_style_config = prepare_style_config(
+        config_inst, category_inst, variable_inst, density, shape_norm, yscale,
+    )
+    # plot-function specific changes
+    default_style_config["rax_cfg"]["ylim"] = (0., 1.1)
+    default_style_config["rax_cfg"]["ylabel"] = "efficiency"
+
+    style_config = law.util.merge_dicts(default_style_config, style_config, deep=True)
+    if shape_norm:
+        style_config["ax_cfg"]["ylabel"] = r"$\Delta N/N$"
+
+    return plot_all(plot_config, style_config, **kwargs)
 
 def plot_variable_variants(
     hists: OrderedDict,
@@ -130,7 +257,6 @@ def plot_variable_variants(
         style_config["ax_cfg"]["ylabel"] = r"$\Delta N/N$"
 
     return plot_all(plot_config, style_config, **kwargs)
-
 
 def plot_shifted_variable(
     hists: OrderedDict,
